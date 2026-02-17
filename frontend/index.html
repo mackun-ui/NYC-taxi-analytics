@@ -67,7 +67,110 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            
+            <!-- Stats Cards -->
+            <section class="stats-section">
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h3>Total Trips</h3>
+                        <p class="stat-value" id="total-trips">45,892</p>
+                        <span class="stat-change positive">+12.5% from last month</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h3>Avg Fare</h3>
+                        <p class="stat-value" id="avg-fare">$53.22</p>
+                        <span class="stat-change positive">+5.3% from last month</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h3>Avg Distance</h3>
+                        <p class="stat-value" id="avg-distance">17.01 mi</p>
+                        <span class="stat-change positive">+2.1% from last month</span>
+                    </div>
+                </div>
+
+                <div class="stat-card"> 
+                    <div class="stat-details">
+                        <h3>Total Revenue</h3>
+                        <p class="stat-value" id="total-revenue">$849,650</p>
+                        <span class="stat-change positive">+18.7% from last month</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Visualizations -->
+            <section class="charts-section">
+                <h2 class="section-title">Data Visualizations</h2>
+                
+                <div class="charts-grid">
+                    <!-- Daily Trip Volume Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Daily Trip Volume</h3>
+                        <canvas id="daily-trips-chart"></canvas>
+                    </div>
+
+                    <!-- Revenue by Borough Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Revenue by Borough</h3>
+                        <canvas id="revenue-borough-chart"></canvas>
+                    </div>
+
+                    <!-- Trip Distribution by Borough Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Trip Distribution by Borough</h3>
+                        <canvas id="trip-distribution-chart"></canvas>
+                    </div>
+
+                    <!-- Average Fare by Hour Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Average Fare by Hour</h3>
+                        <canvas id="fare-hour-chart"></canvas>
+                    </div>
+
+                    <!-- Distance Distribution Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Distance Distribution</h3>
+                        <canvas id="distance-distribution-chart"></canvas>
+                    </div>
+
+                    <!-- Payment Methods Chart -->
+                    <div class="chart-card">
+                        <h3 class="chart-title">Payment Methods</h3>
+                        <canvas id="payment-methods-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Trip Records Table -->
+            <section class="table-section">
+                <h2 class="section-title">Recent Trip Records</h2>
+                <p class="section-subtitle">Detailed information for the most recent taxi trips</p>
+                
+                <div class="table-container">
+                    <table id="trips-table">
+                        <thead>
+                            <tr>
+                                <th>Trip ID</th>
+                                <th>Pickup Time</th>
+                                <th>Pickup Location</th>
+                                <th>Dropoff Location</th>
+                                <th>Distance</th>
+                                <th>Fare</th>
+                                <th>Tip</th>
+                                <th>Total</th>
+                                <th>Payment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trips-table-body">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </main>
     </div>
 </body>
