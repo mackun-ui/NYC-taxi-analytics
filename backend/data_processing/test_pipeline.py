@@ -1,12 +1,7 @@
-# test_pipeline.py
-
 from .load_data import load_trip_data, load_zone_lookup
 from .clean_data import clean_trip_data
 from .merge_data import merge_zone_data
 
-# -----------------------------
-# FILE PATHS (EDIT THESE)
-# -----------------------------
 TRIP_FILE = "C:/Users/macku/Downloads/yellow_tripdata_2019-01.csv"
 ZONE_FILE = "C:/Users/macku/Downloads/taxi_zone_lookup.csv"
 
