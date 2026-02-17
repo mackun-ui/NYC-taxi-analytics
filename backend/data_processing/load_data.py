@@ -6,10 +6,15 @@ import os
 
 def load_trip_data(file_path):
     # loads the yellow taxi trip data from a .parquet file
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"{file_path} does not exist")
+    file_path = file_path.lower()
+
+    if file_path.endswith(".csv"):
+        df = pd.read_csv(file_path)
+    elif file_path.endswith(".parquet"):
+        df = pd.read_parquet(file_path)
     else:
-        raise ValueError("Unsupported file type. Must be .parquet or .csv")
+        raise ValueError(f"Unsupported file type: {file_path}")
+
     
     if file_path.endswith(".parquet"):
         df = pd.read_parquet(file_path)
