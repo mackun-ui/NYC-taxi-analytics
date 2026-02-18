@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api'; // Backend API endpoint (adjust when backend is ready)
+const API_BASE_URL = 'http://127.0.0.1:5000/api'; // Backend API endpoint (adjust when backend is ready)
 
 // === STATE MANAGEMENT ===
 let tripData = [];
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // === DATA LOADING ===
 async function loadData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/trips`);
+        const response = await fetch(`${API_BASE_URL}/trips/sample`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
