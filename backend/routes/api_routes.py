@@ -1,62 +1,63 @@
-from flask import Blueprint, jsonify
-import pandas as pd
-import os
+from flask import Blueprint, jsonify, current_app
+from sqlalchemy import text
 
 api = Blueprint('api', __name__)
 
 @api.route('/trips/sample', methods=['GET'])
 def get_sample_trips():
     try:
-        # file path
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        data_path = os.path.join(base_dir, 'processed_data', 'cleaned_trips_small.csv')
+        engine = current_app.config['ENGINE']
 
-        # loading the dataset
-        df = pd.read_csv(data_path)
+        query = text("""
+            SELECT 
+                t."VendorID" as id,
+                TO_CHAR(
+                    TO_TIMESTAMP(t."tpep_pickup_datetime", 'DD/MM/YYYY HH24:MI'),
+                    'YYYY-MM-DD"T"HH24:MI:SS'
+                ) as "pickupTime",
+                t."PULocationID" as "pickupLocation",
+                t."DOLocationID" as "dropoffLocation",
+                t."trip_distance" as distance,
+                t."fare_amount" as fare,
+                t."tip_amount" as tip,
+                t."total_amount" as total,
+                t."payment_type" as payment,
+                t."trip_duration_min" as duration,
+                EXTRACT(HOUR FROM TO_TIMESTAMP(t."tpep_pickup_datetime", 'DD/MM/YYYY HH24:MI')) as hour,
+                z."Borough" as borough
+            FROM trips t
+            LEFT JOIN taxi_zones z
+            ON t."PULocationID" = z."LocationID"
+            LIMIT 1000
+        """)
 
-        # renaming columns to match frontend
-        df = df.rename(columns={
-            'tpep_pickup_datetime': 'pickupTime',
-            'tpep_dropoff_datetime': 'dropoffTime',
-            'PULocationID': 'pickupLocation',
-            'DOLocationID': 'dropoffLocation',
-            'trip_distance': 'distance',
-            'fare_amount': 'fare',
-            'tip_amount': 'tip',
-            'total_amount': 'total',
-            'payment_type': 'payment',
-            'trip_duration_min': 'duration'
-        })
 
-        # converting datetime and extracting hours
-        df['pickupTime'] = pd.to_datetime(df['pickupTime'], dayfirst=True, errors='coerce')
-        df['hour'] = df['pickupTime'].dt.hour
+        with engine.connect() as conn:
+            result = conn.execute(query)
+            rows = result.fetchall()
 
-        # creating borough placeholder (temp)
-        df['borough'] = df['pickupLocation']
+        # payment labels expected from frontend
+        payment_map = {
+            1: "Credit Card",
+            2: "Cash",
+            3: "No Charge",
+            4: "Dispute",
+            5: "Unknown",
+            6: "Voided"
+        }
 
-        # creating ID column
-        df['id'] = df.index + 1
+        # convert to list of dicts
+        data = []
+        for row in rows:
+            record = dict(row._mapping)
 
-        # selecting only the fields the frontend needs
-        df = df[[
-            'id',
-            'pickupTime',
-            'pickupLocation',
-            'dropoffLocation',
-            'distance',
-            'fare',
-            'tip',
-            'total',
-            'payment',
-            'borough',
-            'hour'
-        ]]
+            # convert payment type code to label
+            record["payment"] = payment_map.get(record["payment"], "Other")
 
-        # converting datetime to string for JSON
-        df['pickupTime'] = df['pickupTime'].astype(str)
+            data.append(record)
 
-        return jsonify(df.to_dict(orient='records'))
-    
+        return jsonify(data)
+
     except Exception as e:
+        print("API ERROR:", str(e))
         return jsonify({'error': str(e)}), 500
