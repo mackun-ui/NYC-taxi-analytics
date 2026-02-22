@@ -15,10 +15,24 @@ load_dotenv(env_path)
 
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
 if not DATABASE_URL:
-    print("Error: DATABASE_URL not found in .env file")
-    print(f"Checked path: {os.path.abspath(env_path)}")
-    sys.exit(1)
+    db_host = os.environ.get('DB_HOST')
+    db_port = os.environ.get('DB_PORT', '5432')
+    db_user = os.environ.get('DB_USER')
+    db_pass = os.environ.get('DB_PASSWORD')
+    db_name = os.environ.get('DB_NAME')
+
+    if all([db_host, db_user, db_pass, db_name]):
+        # Construct DATABASE_URL from individual components
+        # Using URL encoding for password to handle special characters
+        from urllib.parse import quote_plus
+        DATABASE_URL = f"postgresql://{db_user}:{quote_plus(db_pass)}@{db_host}:{db_port}/{db_name}"
+        print("Using database connection parameters from .env")
+    else:
+        print("Error: DATABASE_URL not found, and connection parameters (DB_HOST, DB_USER, etc.) are incomplete in .env file")
+        print(f"Checked path: {os.path.abspath(env_path)}")
+        sys.exit(1)
 
 
 
@@ -95,16 +109,24 @@ dtype_mapping = {k: v for k, v in dtype_mapping.items() if k in df.columns}
 
 try:
     engine = create_engine(DATABASE_URL)
-    conn = engine.connect()
-    conn.close()
+    with engine.connect() as conn:
+        # Get current database and schema info
+        db_info = conn.execute(text("SELECT current_database(), current_schema()")).fetchone()
+        print(f"Connected to: {db_info[0]} (Schema: {db_info[1]})")
+
+        print("Cleaning up existing tables (DRP CASCADE)...")
+        conn.execute(text("DROP TABLE IF EXISTS trips CASCADE;"))
+        conn.execute(text("DROP TABLE IF EXISTS trips_raw CASCADE;"))
+        conn.execute(text("DROP TABLE IF EXISTS zones CASCADE;"))
+        conn.commit()
 except Exception as e:
-    print(f"Error connecting to database: {e}")
-    print("Please check your DATABASE_URL in backend/.env")
+    print(f"Error connecting to or cleaning database: {e}")
+    print("Please check your database permissions and connection settings.")
     sys.exit(1)
 
 
-print("Creating 'trips' table schema...")
-df.head(0).to_sql("trips", engine, if_exists="replace", index=False, dtype=dtype_mapping)
+print("Creating 'trips_raw' table schema...")
+df.head(0).to_sql("trips_raw", engine, if_exists="replace", index=False, dtype=dtype_mapping)
 
 
 print("Creating Normalized Tables for ERD...")
@@ -120,7 +142,7 @@ try:
 
          pass
 
-    zone_df.to_sql("taxi_zones", engine, if_exists="replace", index=False, dtype={
+    zone_df.to_sql("zones", engine, if_exists="append", index=False, dtype={
         "LocationID": Integer,
         "Borough": Text,
         "Zone": Text,
@@ -129,25 +151,28 @@ try:
 
 
     with engine.connect() as con:
-        con.execute(text("ALTER TABLE taxi_zones ADD PRIMARY KEY (\"LocationID\");"))
+        con.execute(text("ALTER TABLE zones ADD PRIMARY KEY (\"LocationID\");"))
         con.commit()
-    print("Table 'taxi_zones' created and populated.")
+    print("Table 'zones' created and populated.")
 except Exception as e:
-    print(f"Error creating taxi_zones: {e}")
+    print(f"Error processing 'zones': {e}")
 
 
-print("Creating 'trips_normalized' table schema...")
-df.head(0).to_sql("trips_normalized", engine, if_exists="replace", index=False, dtype=dtype_mapping)
+print("Creating 'trips' table schema...")
+df.head(0).to_sql("trips", engine, if_exists="append", index=False, dtype=dtype_mapping)
+
+print("Creating 'trips_raw' table schema...")
+df.head(0).to_sql("trips_raw", engine, if_exists="append", index=False, dtype=dtype_mapping)
 
 with engine.connect() as con:
 
     try:
 
         if 'PULocationID' in df.columns and 'DOLocationID' in df.columns:
-            con.execute(text("ALTER TABLE trips_normalized ADD CONSTRAINT fk_pickup FOREIGN KEY (\"PULocationID\") REFERENCES taxi_zones(\"LocationID\");"))
-            con.execute(text("ALTER TABLE trips_normalized ADD CONSTRAINT fk_dropoff FOREIGN KEY (\"DOLocationID\") REFERENCES taxi_zones(\"LocationID\");"))
+            con.execute(text("ALTER TABLE trips ADD CONSTRAINT fk_pickup FOREIGN KEY (\"PULocationID\") REFERENCES zones(\"LocationID\");"))
+            con.execute(text("ALTER TABLE trips ADD CONSTRAINT fk_dropoff FOREIGN KEY (\"DOLocationID\") REFERENCES zones(\"LocationID\");"))
             con.commit()
-            print("Foreign Keys added to 'trips_normalized'.")
+            print("Foreign Keys added to 'trips'.")
         else:
             print("Skipping Foreign Keys: PULocationID or DOLocationID missing in trip data.")
     except Exception as e:
@@ -167,15 +192,15 @@ try:
     df.to_csv(csv_buffer, index=False, header=False)
     csv_buffer.seek(0)
 
-    print("Copying data to 'trips' table...")
-    cur.copy_expert("COPY trips FROM STDIN WITH (FORMAT CSV)", csv_buffer)
-    print("Data uploaded to 'trips'.")
+    print("Copying data to 'trips_raw' table...")
+    cur.copy_expert("COPY trips_raw FROM STDIN WITH (FORMAT CSV)", csv_buffer)
+    print("Data uploaded to 'trips_raw'.")
 
 
     csv_buffer.seek(0)
-    print("Copying data to 'trips_normalized' table...")
-    cur.copy_expert("COPY trips_normalized FROM STDIN WITH (FORMAT CSV)", csv_buffer)
-    print("Data uploaded to 'trips_normalized'.")
+    print("Copying data to 'trips' table...")
+    cur.copy_expert("COPY trips FROM STDIN WITH (FORMAT CSV)", csv_buffer)
+    print("Data uploaded to 'trips'.")
 
     conn_raw.commit()
     print("All data upload complete.")
@@ -186,7 +211,9 @@ try:
     index_cols = ['pickup_borough', 'pickup_hour', 'fare_amount', 'PULocationID', 'DOLocationID']
     for col in index_cols:
         if col in df.columns:
-             cur.execute(f"CREATE INDEX IF NOT EXISTS idx_{col} ON trips ({col});")
+             # Using double quotes for column names due to MixedCase in PostgreSQL
+             cur.execute(f'CREATE INDEX IF NOT EXISTS "idx_{col}" ON trips ("{col}");')
+             cur.execute(f'CREATE INDEX IF NOT EXISTS "idx_{col}_raw" ON trips_raw ("{col}");')
 
     conn_raw.commit()
     print("Indexes created.")
