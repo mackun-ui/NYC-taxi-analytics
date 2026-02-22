@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://127.0.0.1:5000/api'; // Backend API endpoint (adjust when backend is ready)
+const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
 // === STATE MANAGEMENT ===
 let tripData = [];
